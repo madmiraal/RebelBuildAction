@@ -5,6 +5,10 @@ inputs:
     description: Name of the artifact to be uploaded
   build-options:
     description: SCons build options
+  build-mono:
+    description: Build mono version
+    type: boolean
+    default: false
   use-build-cache:
     description: Use a build cache to make subsequent builds faster
     type: boolean
@@ -78,10 +82,16 @@ runs:
           echo "::endgroup::"
         fi
 
-    - name: Set SCons Cache Environment Variable
-      if: inputs.use-build-cache == 'true'
+    - name: Set environment variables
       shell: bash
-      run: echo "SCONS_CACHE=.scons-cache/" >> $GITHUB_ENV
+      run: |
+        #Setting environment variables
+        if [[ "${{ inputs.use-build-cache }}" == "true" ]]; then
+          echo "SCONS_CACHE=.scons-cache/" >> $GITHUB_ENV
+        fi
+        if [[ "${{ inputs.build-mono }}" == "true" ]]; then
+          echo "MONO_ENABLED=module_mono_enabled=yes" >> $GITHUB_ENV
+        fi
 
     - name: Setup SCons cache
       if: inputs.use-build-cache == 'true'
@@ -92,13 +102,26 @@ runs:
         restore-keys: |
           ${{ github.job }}-${{ strategy.job-index }}-
 
+    - name: Generate Mono Glue for Mono Builds
+      if: inputs.build-mono == 'true'
+      shell: bash
+      working-directory: RebelEngine
+      run: |
+        #Generate Mono Glue for Mono Builds
+        echo "::group::Building Rebel for generating Mono glue"
+        scons -j2 ${{ inputs.build-options }} tools=yes $MONO_ENABLED mono_glue=no
+        echo "::endgroup::"
+        echo "::group::Generating Mono Glue"
+        DRI_PRIME=0 xvfb-run bin/${{ inputs.rebel-executable }} --generate-mono-glue modules/mono/glue
+        echo "::endgroup::"
+
     - name: Build Rebel
       shell: bash
       working-directory: RebelEngine
       run: |
         #Build Rebel
         echo "::group::Building Rebel"
-        scons -j2 ${{ inputs.build-options }}
+        scons -j2 ${{ inputs.build-options }} $MONO_ENABLED
         echo "::endgroup::"
         echo "Build files:"
         ls -1 bin
