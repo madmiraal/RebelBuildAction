@@ -12,6 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        build-mono: [true, false]
         include:
           - name: Build Linux Rebel Editor
             os: ubuntu-latest
@@ -77,3 +78,4 @@ jobs:
           artifact: ${{ matrix.artifact }}
           build-options: ${{ matrix.build-options }}
           rebel-executable: ${{ matrix.rebel-executable }}
+          mono: ${{ matrix.build-mono }}
