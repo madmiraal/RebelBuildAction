@@ -78,11 +78,11 @@ runs:
           yasm
           echo "::endgroup::"
         fi
-
-    - name: Set SCons Cache Environment Variable
-      if: inputs.use-build-cache == 'true'
-      shell: bash
-      run: echo "SCONS_CACHE=.scons-cache/" >> $GITHUB_ENV
+        echo "Setting SCONS_CACHE=.scons-cache/"
+        echo "SCONS_CACHE=.scons-cache/" >> $GITHUB_ENV
+        # Android builds require Java version 17.
+        echo "Setting JAVA_HOME=$JAVA_HOME_17_X64"
+        echo "JAVA_HOME=$JAVA_HOME_17_X64" >> $GITHUB_ENV
 
     - name: Setup SCons cache
       if: inputs.use-build-cache == 'true'
