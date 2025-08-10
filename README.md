@@ -16,6 +16,11 @@ This Action provides a standardised way for building Rebel Engine and Rebel Edit
     # SCons build options.
     build-options:
     
+    # Build Rebel with Mono module.
+    # Type: boolean
+    # Default: false
+    include-mono:
+
     # Use a build cache to make subsequent builds faster.
     # Type: boolean
     # Default: true

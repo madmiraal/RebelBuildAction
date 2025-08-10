@@ -18,6 +18,12 @@ jobs:
             artifact: linux-editor
             build-options: production=yes target=release_debug
 
+          - name: Build Linux with Mono Rebel Editor
+            os: ubuntu-latest
+            artifact: linux-with-mono-editor
+            build-options: production=yes target=release_debug
+            include-mono: true
+
           - name: Build Windows Rebel Editor on Linux
             os: ubuntu-latest
             artifact: windows-editor-mingw-linux
@@ -28,15 +34,27 @@ jobs:
             artifact: windows-editor-msvc
             build-options: production=yes target=release_debug
 
+          - name: Build Windows with Mono Rebel Editor using MSVC
+            os: windows-latest
+            artifact: windows-with-mono-editor
+            build-options: production=yes target=release_debug
+            include-mono: true
+
           - name: Build Windows Rebel Editor using MinGW
             os: windows-latest
             artifact: windows-editor-mingw
             build-options: production=yes target=release_debug use_mingw=yes
 
           - name: Build macOS Rebel Editor
-            os: macOS-latest
+            os: macos-latest
             artifact: macos-editor
             build-options: production=yes target=release_debug
+
+          - name: Build macOS with Mono Rebel Editor
+            os: macos-latest
+            artifact: macos-with-mono-editor
+            build-options: production=yes target=release_debug
+            include-mono: true
 
           - name: Build Android Rebel Engine Library
             os: ubuntu-latest
@@ -44,7 +62,7 @@ jobs:
             build-options: platform=android production=yes tools=no target=release
 
           - name: Build iOS Rebel Engine Library
-            os: macOS-latest
+            os: macos-latest
             artifact: ios-engine-library-arm64
             build-options: platform=ios production=yes tools=no target=release
 
@@ -63,6 +81,7 @@ jobs:
         with:
           artifact: ${{ matrix.artifact }}
           build-options: ${{ matrix.build-options }}
+          include-mono: ${{ matrix.include-mono }}
 
       - name: Check build output filename
         run: |

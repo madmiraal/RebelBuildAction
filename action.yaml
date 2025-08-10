@@ -5,6 +5,10 @@ inputs:
     description: Name of the artifact to be uploaded.
   build-options:
     description: SCons build options.
+  include-mono:
+    description: Build Rebel with Mono module.
+    type: boolean
+    default: false
   use-build-cache:
     description: Use a build cache to make subsequent builds faster.
     type: boolean
@@ -74,7 +78,33 @@ runs:
           echo "::endgroup::"
         fi
 
-    - name: Set SCons Cache Environment Variable
+    - name: Install Mono dependencies
+      if: inputs.include-mono == 'true'
+      shell: bash
+      run: |
+        #Install Mono dependencies
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          echo "::group::Installing Linux Mono dependencies"
+          sudo apt-get install -y \
+          mono-devel
+          echo "::endgroup::"
+        fi
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          echo "::group::Installing Windows Mono dependencies"
+          winget install              \
+          --accept-source-agreements  \
+          --accept-package-agreements \
+          mono-devel
+          echo "::endgroup::"
+        fi
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          echo "::group::Installing macOS Mono dependencies"
+          brew install \
+          mono-devel
+          echo "::endgroup::"
+        fi
+
+    - name: Set SCons cache environment variable
       if: inputs.use-build-cache == 'true'
       shell: bash
       run: |
@@ -90,13 +120,54 @@ runs:
         restore-keys: |
           ${{ github.job }}-${{ strategy.job-index }}-
 
+    - name: Set command prefix variable
+      shell: bash
+      run: |
+        #Set command prefix variable
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          echo "command-prefix=xvfb-run" >> $GITHUB_ENV
+        fi
+
+    - name: Build Rebel Editor for Mono
+      if: inputs.include-mono == 'true'
+      id: rebel-editor-for-mono
+      uses: ./
+      with:
+        artifact: ${{ runner.os }}-rebel-editor-for-mono-glue
+        build-options: module_mono_enabled=yes mono_glue=no
+
+    - name: Generate Mono Glue
+      if: inputs.include-mono == 'true'
+      shell: bash
+      working-directory: RebelEngine
+      run: |
+        #Generate Mono Glue
+        echo "::group::Generating Mono Glue"
+        ${{ env.command-prefix }} bin/${{ steps.rebel-editor-for-mono.outputs.build-filename }} --generate-mono-glue modules/mono/glue
+        echo "::endgroup::"
+
+    - name: Clean build folder
+      if: inputs.include-mono == 'true'
+      shell: bash
+      working-directory: RebelEngine
+      run:
+        #Clean build folder, but leave created RebelSharp folder.
+        rm bin/*
+
+    - name: Set Mono module enabled environment variable
+      if: inputs.include-mono == 'true'
+      shell: bash
+      run: |
+        #Set Mono module enabled environment variable
+        echo "module_mono_enabled=module_mono_enabled=yes" >> $GITHUB_ENV
+
     - name: Build Rebel
       shell: bash
       working-directory: RebelEngine
       run: |
         #Build Rebel
         echo "::group::Building Rebel"
-        scons -j2 ${{ inputs.build-options }}
+        scons -j2 ${{ inputs.build-options }} ${{ env.module_mono_enabled }}
         echo "::endgroup::"
 
     - name: Get build filename
@@ -109,14 +180,21 @@ runs:
         for file in *; do
           if [ -f "$file" ]; then
             if [[ $file == "rebel.windows"* ]]; then
-              # Visual Studio creates additional files to support cross-linking
+              # Visual Studio creates additional files to support cross-linking.
               if [[ $file != *".exe" ]]; then
                 echo "Ignoring: $file"
                 continue
               fi
             fi
             if [[ $file == "rebel.web"* ]]; then
-              # Web builds contain multiple files that are put in the .zip file
+              # Web builds contain multiple files that are put in the .zip file.
+              if [[ $file != *".zip" ]]; then
+                echo "Ignoring: $file"
+                continue
+              fi
+            fi
+            if [[ $file == "libmono"* ]]; then
+              # Mono module with mono_glue=no creates library file.
               if [[ $file != *".zip" ]]; then
                 echo "Ignoring: $file"
                 continue
