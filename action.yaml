@@ -5,6 +5,10 @@ inputs:
     description: Name of the artifact to be uploaded
   build-options:
     description: SCons build options
+  include-mono:
+    description: Build Rebel with Mono module
+    type: boolean
+    default: false
   use-build-cache:
     description: Use a build cache to make subsequent builds faster
     type: boolean
@@ -36,6 +40,7 @@ runs:
           clang                   \
           lld                     \
           mingw-w64               \
+          mono-devel              \
           emscripten              \
           scons                   \
           libx11-dev              \
@@ -63,11 +68,12 @@ runs:
           python -m pip install scons
           brew update
           brew install \
+          mono-devel   \
           yasm
           echo "::endgroup::"
         fi
 
-    - name: Set SCons Cache Environment Variable
+    - name: Set SCons cache environment variable
       if: inputs.use-build-cache == 'true'
       shell: bash
       run: |
@@ -83,13 +89,62 @@ runs:
         restore-keys: |
           ${{ github.job }}-${{ strategy.job-index }}-
 
+    - name: Install Mono dependencies
+      if: inputs.include-mono == 'true'
+      shell: bash
+      run: |
+        #Install Mono dependencies
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          echo "::group::Installing Linux Mono dependencies"
+          sudo apt-get install -y \
+          mono-devel
+          echo "::endgroup::"
+        fi
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          echo "::group::Installing Windows Mono dependencies"
+          winget install \
+          mono-devel
+          echo "::endgroup::"
+        fi
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          echo "::group::Installing macOS Mono dependencies"
+          brew install \
+          mono-devel
+          echo "::endgroup::"
+        fi
+
+    - name: Set Mono module enabled environment variable
+      if: inputs.include-mono == 'true'
+      shell: bash
+      run: |
+        #Set Mono module enabled environment variable
+        echo "module_mono_enabled=module_mono_enabled=yes" >> $GITHUB_ENV
+
+    - name: Build Rebel Editor for Mono
+      if: inputs.include-mono == 'true'
+      id: rebel-editor-for-mono
+      uses: ./
+      with:
+        artifact: ${{ runner.os }}-rebel-editor-for-mono-glue
+        build-options: ${{ env.module_mono_enabled }} mono_glue=no
+
+    - name: Generate Mono Glue
+      if: inputs.include-mono == 'true'
+      shell: bash
+      working-directory: RebelEngine
+      run: |
+        #Generate Mono Glue
+        echo "::group::Generating Mono Glue"
+        bin/${{ steps.rebel-editor-for-mono.outputs.build-filename }} --generate-mono-glue modules/mono/glue
+        echo "::endgroup::"
+
     - name: Build Rebel
       shell: bash
       working-directory: RebelEngine
       run: |
         #Build Rebel
         echo "::group::Building Rebel"
-        scons -j2 ${{ inputs.build-options }}
+        scons -j2 ${{ inputs.build-options }} ${{ env.module_mono_enabled }}
         echo "::endgroup::"
 
     - name: Get build filename

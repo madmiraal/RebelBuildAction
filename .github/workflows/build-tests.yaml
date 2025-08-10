@@ -12,6 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        include-mono: [true]
         include:
           - name: Build Linux Rebel Editor
             os: ubuntu-latest
@@ -63,6 +65,7 @@ jobs:
         with:
           artifact: ${{ matrix.artifact }}
           build-options: ${{ matrix.build-options }}
+          include-mono: ${{ matrix.include-mono }}
 
       - name: Check build output filename
         run: |
